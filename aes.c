@@ -192,7 +192,35 @@ void key_schedule(uchar *key, uchar *expanded_key, aes_spec *spec) {
     END KEY SCHEDULE
 */
 
-aes_status aes_encrypt(uchar block[16], uchar *key, unsigned int keysize) {
+/*  
+    PRIMARY ALGORITHM STEPS
+*/
+
+void sub_bytes(uchar state[128]) {
+    for (unsigned int i=0; i<128; i++) {
+        state[i] = SBOX[state[i]];
+    }
+}
+
+void shift_rows(uchar state[128]) {
+
+}
+
+void mix_columns(uchar state[128]) {
+
+}
+
+void add_round_key(uchar state[128], uchar round_key[128]) {
+    for (unsigned int i=0; i<128; i++) {
+        state[i] ^= round_key[i];
+    }
+}
+
+/*
+    END PRIMARY ALGORITHM
+*/
+
+aes_status aes_encrypt(uchar block[AES_BLOCK_SIZE], uchar *key, unsigned int keysize) {
     aes_spec s = {0, 0, 0};
     aes_spec *spec = &s;
     uchar *expanded_key;
@@ -212,28 +240,42 @@ aes_status aes_encrypt(uchar block[16], uchar *key, unsigned int keysize) {
 
     print_key(expanded_key, spec->expanded_keysize);
 
+    uchar state[AES_BLOCK_SIZE] = { 0 };
+    for (unsigned int i=0; i<AES_BLOCK_SIZE; i++) {
+        state[i] = block[i];
+    }
 
+    /* BEGIN AES CORE */
+    add_round_key(state, expanded_key);
 
+    // Loops 1 less than nrounds because mix_columns is removed in last round
+    for (unsigned int i=0; i<spec->nrounds-1; i++) {
+        sub_bytes(state);
+        shift_rows(state);
+        mix_columns(state);
+        add_round_key(state, expanded_key + (AES_BLOCK_SIZE * (i+1)));
+    }
+    sub_bytes(state);
+    shift_rows(state);
+    add_round_key(state, expanded_key + (AES_BLOCK_SIZE * spec->nrounds));
+    /* END AES CORE */
 
-
-    /* PERFORM ENCRYPTION ROUNDS */
-
-
-
-
+    for (unsigned int i=0; i<AES_BLOCK_SIZE; i++) {
+        block[i] = state[i];
+    }
 
     free(expanded_key);
     return AES_SUCCEED;
 }
 
-unsigned int aes_decrypt(uchar block[16], uchar *key, unsigned int keysize) {
+unsigned int aes_decrypt(uchar block[AES_BLOCK_SIZE], uchar *key, unsigned int keysize) {
     return 0;
 }
 
 int main(int argc, char **argv) {
     aes_status status;
     unsigned int keysize;
-    uchar block[16] = {0x00};
+    uchar block[AES_BLOCK_SIZE] = {0x00};
 
     /* TEMPORARY INPUT FOR TESTING */
     scanf("%u\n", &keysize);

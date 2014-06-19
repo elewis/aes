@@ -8,6 +8,8 @@
 #include <string.h>
 #include <unistd.h>
 
+#define AES_BLOCK_SIZE 16
+
 typedef unsigned char uchar;
 
 typedef enum {

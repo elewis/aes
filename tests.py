@@ -34,7 +34,6 @@ def run_tests(exe):
         print("Test: {} ".format(test), end="")
         if (''.join(output) == ''.join(refput)):
             print("PASS")
-            print()
         else:
             print("FAIL")
             print("Diff (+ref, -usr):")
