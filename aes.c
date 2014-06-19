@@ -232,21 +232,22 @@ unsigned int aes_decrypt(uchar block[16], uchar *key, unsigned int keysize) {
 
 int main(int argc, char **argv) {
     aes_status status;
-    unsigned int keysize = 32;
+    unsigned int keysize;
     uchar block[16] = {0x00};
+
+    /* TEMPORARY INPUT FOR TESTING */
+    scanf("%u\n", &keysize);
     uchar *key = malloc(keysize * sizeof(uchar));
-
     for (size_t i=0; i<keysize; i++) {
-        key[i] = 0;
+        key[i] = fgetc(stdin);
     }
-
-    scanf("%u", &keysize);
-    scanf("%s", key);
+    /* END TEMPORARY INPUT */
 
     status = aes_encrypt(block, key, keysize);
 
     if (status != AES_SUCCEED) {
         print_readable(status);
+        return -1;
     }
     free(key);
     return 0;
