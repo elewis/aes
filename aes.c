@@ -89,7 +89,6 @@ void print_key(unsigned char *buf, size_t length) {
             printf("\n");
         }
     }
-    printf("\n");
 }
 
 void print_readable(aes_status status) {
