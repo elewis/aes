@@ -117,12 +117,6 @@ void key_schedule_core(unsigned char word[4], unsigned int i) {
     word[3] = SBOX[tmp];
 }
 
-void memxor(unsigned char *dst, unsigned char *src, unsigned int nbytes) {
-    for (unsigned int i=0; i<nbytes; i++) {
-        dst[i] ^= src[i];
-    }
-}
-
 /*
  * AES_init_spec
  *
@@ -167,25 +161,35 @@ void aes_init_spec(aes_spec *spec) {
  *
  * Returns status code, indicating success of key_schedule (0=pass, >0 see ERR_KEY_SCHEDULE)
  */
-void key_schedule(unsigned char *key, unsigned char *expanded_key, aes_spec *spec) {
-    unsigned int i, j, n, c;
-    unsigned char *kword;
+void
+key_schedule(unsigned char *key, unsigned char *expanded_key, aes_spec *spec)
+{
+    int j, n;
+    unsigned int i, c;
+    unsigned char *word;
 
-    memcpy(expanded_key, key, spec->keysize);
+    for (j=0; j<spec->keysize; j++) {
+        expanded_key[j] = key[j];
+    }
+
     i = 1;
     n = c = spec->keysize;
     while (c < spec->expanded_keysize) {
-        kword = (unsigned char*) (expanded_key + c);
-        memcpy(kword, kword-4, 4);
+        word = (unsigned char*) (expanded_key + c);
+        for (j=0; j<4; j++) {
+            word[j] = word[j-4];
+        }
         if (c % n == 0) {
-            key_schedule_core(kword, i++);
+            key_schedule_core(word, i++);
         }
         if (n == 32 && c % n == 16) {
             for (j=0; j<4; j++) {
-                kword[j] = SBOX[kword[j]];
+                word[j] = SBOX[word[j]];
             }
         }
-        memxor(kword, kword-n, 4);
+        for (j=0; j<4; j++) {
+            word[j] ^= word[j-n];
+        }
         c += 4;
     }
 }

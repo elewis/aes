@@ -23,8 +23,8 @@ typedef struct {
     unsigned int nrounds;
 } aes_spec;
 
-aes_status aes_encrypt(unsigned char block[16], unsigned char *key, unsigned int keysize);
+aes_status aes_encrypt(unsigned char block[AES_BLOCK_SIZE], unsigned char *key, unsigned int keysize);
 
-aes_status aes_decrypt(unsigned char block[16], unsigned char *key, unsigned int keysize);
+aes_status aes_decrypt(unsigned char block[AES_BLOCK_SIZE], unsigned char *key, unsigned int keysize);
 
 #endif /* AES_H_INCLUDED */
