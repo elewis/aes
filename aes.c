@@ -207,7 +207,22 @@ void shift_rows(unsigned char state[AES_BLOCK_SIZE]) {
 }
 
 void mix_columns(unsigned char state[AES_BLOCK_SIZE]) {
-
+    unsigned char c, i, neg;
+    unsigned char *col;
+    unsigned char one[4], two[4], thr[4];
+    for (c=0; c<AES_BLOCK_SIZE; c += 4) {
+        col = state + c;
+        for (i=0; i<4; i++) {
+            neg = (unsigned char) ((signed char) col[i]) >> 7;
+            one[i] = col[i];
+            two[i] = (col[i] << 1) ^ (0x1b & neg);
+            thr[i] = two[i] ^ one[i];
+        }
+        col[0] = two[0] ^ thr[1] ^ one[2] ^ one[3];
+        col[1] = one[0] ^ two[1] ^ thr[2] ^ one[3];
+        col[2] = one[0] ^ one[1] ^ two[2] ^ thr[3];
+        col[3] = thr[0] ^ one[1] ^ one[2] ^ two[3];
+    }
 }
 
 void add_round_key(unsigned char state[AES_BLOCK_SIZE], unsigned char round_key[AES_BLOCK_SIZE]) {
@@ -267,8 +282,8 @@ aes_status aes_encrypt(unsigned char block[AES_BLOCK_SIZE], unsigned char *key, 
     return AES_SUCCEED;
 }
 
-unsigned int aes_decrypt(unsigned char block[AES_BLOCK_SIZE], unsigned char *key, unsigned int keysize) {
-    return 0;
+aes_status aes_decrypt(unsigned char block[AES_BLOCK_SIZE], unsigned char *key, unsigned int keysize) {
+    return AES_SUCCEED;
 }
 
 int main(int argc, char **argv) {
