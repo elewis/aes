@@ -247,9 +247,16 @@ aes_status aes_encrypt(unsigned char block[AES_BLOCK_SIZE], unsigned char *key, 
 
     /* BEGIN AES CORE */
     add_round_key(state, expanded_key);
+
+    for (unsigned int i=1; i<=spec->nrounds; i++) {
+        sub_bytes(state);
+        shift_rows(state);
+        mix_columns(state);
+        add_round_key(state, expanded_key + (AES_BLOCK_SIZE * i));
+    }
     sub_bytes(state);
     shift_rows(state);
-    mix_columns(state);
+    add_round_key(state, expanded_key + (AES_BLOCK_SIZE * (spec->nrounds+1)));
     /* END AES CORE */
 
     for (unsigned int i=0; i<AES_BLOCK_SIZE; i++) {
