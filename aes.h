@@ -10,8 +10,6 @@
 
 #define AES_BLOCK_SIZE 16
 
-typedef unsigned char uchar;
-
 typedef enum {
     AES_SUCCEED,
     AES_BAD_KEYSIZE,
@@ -24,8 +22,8 @@ typedef struct {
     unsigned int nrounds;
 } aes_spec;
 
-aes_status aes_encrypt(uchar block[16], uchar *key, unsigned int keysize);
+aes_status aes_encrypt(unsigned char block[16], unsigned char *key, unsigned int keysize);
 
-unsigned int aes_decrypt(uchar block[16], uchar *key, unsigned int keysize);
+aes_status aes_decrypt(unsigned char block[16], unsigned char *key, unsigned int keysize);
 
 #endif /* AES_H_INCLUDED */

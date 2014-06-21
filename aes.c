@@ -18,7 +18,7 @@
     KEY SCHEDULE FUNCTIONS
 */
 
-uchar RCON[256] = {
+unsigned char RCON[256] = {
     0x8d, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36, 0x6c, 0xd8, 0xab, 0x4d, 0x9a, 
     0x2f, 0x5e, 0xbc, 0x63, 0xc6, 0x97, 0x35, 0x6a, 0xd4, 0xb3, 0x7d, 0xfa, 0xef, 0xc5, 0x91, 0x39, 
     0x72, 0xe4, 0xd3, 0xbd, 0x61, 0xc2, 0x9f, 0x25, 0x4a, 0x94, 0x33, 0x66, 0xcc, 0x83, 0x1d, 0x3a, 
@@ -37,7 +37,7 @@ uchar RCON[256] = {
     0x61, 0xc2, 0x9f, 0x25, 0x4a, 0x94, 0x33, 0x66, 0xcc, 0x83, 0x1d, 0x3a, 0x74, 0xe8, 0xcb, 0x8d
 };
 
-uchar SBOX[256] = {
+unsigned char SBOX[256] = {
     0x63, 0x7C, 0x77, 0x7B, 0xF2, 0x6B, 0x6F, 0xC5, 0x30, 0x01, 0x67, 0x2B, 0xFE, 0xD7, 0xAB, 0x76,
     0xCA, 0x82, 0xC9, 0x7D, 0xFA, 0x59, 0x47, 0xF0, 0xAD, 0xD4, 0xA2, 0xAF, 0x9C, 0xA4, 0x72, 0xC0,
     0xB7, 0xFD, 0x93, 0x26, 0x36, 0x3F, 0xF7, 0xCC, 0x34, 0xA5, 0xE5, 0xF1, 0x71, 0xD8, 0x31, 0x15,
@@ -56,7 +56,7 @@ uchar SBOX[256] = {
     0x8C, 0xA1, 0x89, 0x0D, 0xBF, 0xE6, 0x42, 0x68, 0x41, 0x99, 0x2D, 0x0F, 0xB0, 0x54, 0xBB, 0x16
 };
 
-uchar INV_SBOX[256] = {
+unsigned char INV_SBOX[256] = {
     0x52, 0x09, 0x6A, 0xD5, 0x30, 0x36, 0xA5, 0x38, 0xBF, 0x40, 0xA3, 0x9E, 0x81, 0xF3, 0xD7, 0xFB,
     0x7C, 0xE3, 0x39, 0x82, 0x9B, 0x2F, 0xFF, 0x87, 0x34, 0x8E, 0x43, 0x44, 0xC4, 0xDE, 0xE9, 0xCB,
     0x54, 0x7B, 0x94, 0x32, 0xA6, 0xC2, 0x23, 0x3D, 0xEE, 0x4C, 0x95, 0x0B, 0x42, 0xFA, 0xC3, 0x4E,
@@ -107,15 +107,15 @@ void print_readable(aes_status status) {
     }
 }
 
-void key_schedule_core(uchar word[4], unsigned int i) {
-    uchar tmp = word[0];
+void key_schedule_core(unsigned char word[4], unsigned int i) {
+    unsigned char tmp = word[0];
     word[0] = SBOX[word[1]] ^ RCON[i];
     word[1] = SBOX[word[2]];
     word[2] = SBOX[word[3]];
     word[3] = SBOX[tmp];
 }
 
-void memxor(uchar *dst, uchar *src, unsigned int nbytes) {
+void memxor(unsigned char *dst, unsigned char *src, unsigned int nbytes) {
     for (unsigned int i=0; i<nbytes; i++) {
         dst[i] ^= src[i];
     }
@@ -165,15 +165,15 @@ void aes_init_spec(aes_spec *spec) {
  *
  * Returns status code, indicating success of key_schedule (0=pass, >0 see ERR_KEY_SCHEDULE)
  */
-void key_schedule(uchar *key, uchar *expanded_key, aes_spec *spec) {
+void key_schedule(unsigned char *key, unsigned char *expanded_key, aes_spec *spec) {
     unsigned int i, j, n, c;
-    uchar *kword;
+    unsigned char *kword;
 
     memcpy(expanded_key, key, spec->keysize);
     i = 1;
     n = c = spec->keysize;
     while (c < spec->expanded_keysize) {
-        kword = (uchar*) (expanded_key + c);
+        kword = (unsigned char*) (expanded_key + c);
         memcpy(kword, kword-4, 4);
         if (c % n == 0) {
             key_schedule_core(kword, i++);
@@ -196,22 +196,22 @@ void key_schedule(uchar *key, uchar *expanded_key, aes_spec *spec) {
     PRIMARY ALGORITHM STEPS
 */
 
-void sub_bytes(uchar state[128]) {
-    for (unsigned int i=0; i<128; i++) {
+void sub_bytes(unsigned char state[AES_BLOCK_SIZE]) {
+    for (unsigned int i=0; i<AES_BLOCK_SIZE; i++) {
         state[i] = SBOX[state[i]];
     }
 }
 
-void shift_rows(uchar state[128]) {
+void shift_rows(unsigned char state[AES_BLOCK_SIZE]) {
 
 }
 
-void mix_columns(uchar state[128]) {
+void mix_columns(unsigned char state[AES_BLOCK_SIZE]) {
 
 }
 
-void add_round_key(uchar state[128], uchar round_key[128]) {
-    for (unsigned int i=0; i<128; i++) {
+void add_round_key(unsigned char state[AES_BLOCK_SIZE], unsigned char round_key[AES_BLOCK_SIZE]) {
+    for (unsigned int i=0; i<AES_BLOCK_SIZE; i++) {
         state[i] ^= round_key[i];
     }
 }
@@ -220,10 +220,10 @@ void add_round_key(uchar state[128], uchar round_key[128]) {
     END PRIMARY ALGORITHM
 */
 
-aes_status aes_encrypt(uchar block[AES_BLOCK_SIZE], uchar *key, unsigned int keysize) {
+aes_status aes_encrypt(unsigned char block[AES_BLOCK_SIZE], unsigned char *key, unsigned int keysize) {
     aes_spec s = {0, 0, 0};
     aes_spec *spec = &s;
-    uchar *expanded_key;
+    unsigned char *expanded_key;
 
     spec->keysize = keysize;
 
@@ -232,7 +232,7 @@ aes_status aes_encrypt(uchar block[AES_BLOCK_SIZE], uchar *key, unsigned int key
         return AES_BAD_KEYSIZE;
     }
 
-    expanded_key = (uchar*) malloc(spec->expanded_keysize * sizeof(uchar));
+    expanded_key = (unsigned char*) malloc(spec->expanded_keysize * sizeof(unsigned char));
     if (expanded_key == NULL) {
         return AES_OUT_OF_MEMORY;
     }
@@ -240,24 +240,16 @@ aes_status aes_encrypt(uchar block[AES_BLOCK_SIZE], uchar *key, unsigned int key
 
     print_key(expanded_key, spec->expanded_keysize);
 
-    uchar state[AES_BLOCK_SIZE] = { 0 };
+    unsigned char state[AES_BLOCK_SIZE] = { 0 };
     for (unsigned int i=0; i<AES_BLOCK_SIZE; i++) {
         state[i] = block[i];
     }
 
     /* BEGIN AES CORE */
     add_round_key(state, expanded_key);
-
-    // Loops 1 less than nrounds because mix_columns is removed in last round
-    for (unsigned int i=0; i<spec->nrounds-1; i++) {
-        sub_bytes(state);
-        shift_rows(state);
-        mix_columns(state);
-        add_round_key(state, expanded_key + (AES_BLOCK_SIZE * (i+1)));
-    }
     sub_bytes(state);
     shift_rows(state);
-    add_round_key(state, expanded_key + (AES_BLOCK_SIZE * spec->nrounds));
+    mix_columns(state);
     /* END AES CORE */
 
     for (unsigned int i=0; i<AES_BLOCK_SIZE; i++) {
@@ -268,18 +260,18 @@ aes_status aes_encrypt(uchar block[AES_BLOCK_SIZE], uchar *key, unsigned int key
     return AES_SUCCEED;
 }
 
-unsigned int aes_decrypt(uchar block[AES_BLOCK_SIZE], uchar *key, unsigned int keysize) {
+unsigned int aes_decrypt(unsigned char block[AES_BLOCK_SIZE], unsigned char *key, unsigned int keysize) {
     return 0;
 }
 
 int main(int argc, char **argv) {
     aes_status status;
     unsigned int keysize;
-    uchar block[AES_BLOCK_SIZE] = {0x00};
+    unsigned char block[AES_BLOCK_SIZE] = {0x00};
 
     /* TEMPORARY INPUT FOR TESTING */
     scanf("%u\n", &keysize);
-    uchar *key = malloc(keysize * sizeof(uchar));
+    unsigned char *key = malloc(keysize * sizeof(unsigned char));
     for (size_t i=0; i<keysize; i++) {
         key[i] = fgetc(stdin);
     }
@@ -287,10 +279,10 @@ int main(int argc, char **argv) {
 
     status = aes_encrypt(block, key, keysize);
 
+    free(key);
     if (status != AES_SUCCEED) {
         print_readable(status);
         return -1;
     }
-    free(key);
     return 0;
 }
