@@ -203,7 +203,18 @@ void sub_bytes(unsigned char state[AES_BLOCK_SIZE]) {
 }
 
 void shift_rows(unsigned char state[AES_BLOCK_SIZE]) {
-
+    char r, c;
+    unsigned char state_cpy[AES_BLOCK_SIZE];
+    for (r=0; r<4; r++) {
+        for (c=0; c<4; c++) {
+            state_cpy[r + 4*c] = state[r + 4*(c-r % 4)];
+        }
+    }
+    for (r=0; r<4; r++) {
+        for (c=0; c<4; c++) {
+            state[r + 4*c] = state_cpy[r + 4*c];
+        }
+    }
 }
 
 void mix_columns(unsigned char state[AES_BLOCK_SIZE]) {
@@ -253,7 +264,7 @@ aes_status aes_encrypt(unsigned char block[AES_BLOCK_SIZE], unsigned char *key, 
     }
     key_schedule(key, expanded_key, spec);
 
-    print_key(expanded_key, spec->expanded_keysize);
+    //print_key(expanded_key, spec->expanded_keysize);
 
     unsigned char state[AES_BLOCK_SIZE] = { 0 };
     for (unsigned int i=0; i<AES_BLOCK_SIZE; i++) {
@@ -289,7 +300,7 @@ aes_status aes_decrypt(unsigned char block[AES_BLOCK_SIZE], unsigned char *key, 
 int main(int argc, char **argv) {
     aes_status status;
     unsigned int keysize;
-    unsigned char block[AES_BLOCK_SIZE] = {0x00};
+    unsigned char block[AES_BLOCK_SIZE];
 
     /* TEMPORARY INPUT FOR TESTING */
     scanf("%u\n", &keysize);
@@ -297,9 +308,17 @@ int main(int argc, char **argv) {
     for (size_t i=0; i<keysize; i++) {
         key[i] = fgetc(stdin);
     }
+    scanf("\n");
+    for (size_t i=0; i<AES_BLOCK_SIZE; i++) {
+        block[i] = fgetc(stdin);
+    }
     /* END TEMPORARY INPUT */
 
+    print_bytes(block, AES_BLOCK_SIZE);
+
     status = aes_encrypt(block, key, keysize);
+
+    print_bytes(block, AES_BLOCK_SIZE);
 
     free(key);
     if (status != AES_SUCCEED) {
