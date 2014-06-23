@@ -299,38 +299,31 @@ aes_status aes_decrypt(unsigned char block[AES_BLOCK_SIZE], unsigned char *key, 
     return AES_SUCCEED;
 }
 
-int main(int argc, char **argv) {
-    aes_status status;
-    unsigned int keysize;
-    unsigned char block[AES_BLOCK_SIZE];
-
-    char *key_file = NULL;
-    char  *in_file = NULL;
-    char *out_file = NULL;
+void optparse(int argc, char **argv, char **key_file, char **in_file, char **out_file) {
     int opt, opterrs=0;
 
     while((opt = getopt(argc, argv, ":k:i:o:")) != -1) {
         switch(opt) {
             case 'k':
-                if (key_file) {
+                if (*key_file) {
                     fprintf(stderr, "Option -%c defined twice\n", optopt);
                     opterrs++;
                 }
-                key_file = optarg;
+                *key_file = optarg;
                 break;
             case 'i':
-                if (in_file) {
+                if (*in_file) {
                     fprintf(stderr, "Option -%c defined twice\n", optopt);
                     opterrs++;
                 }
-                in_file = optarg;
+                *in_file = optarg;
                 break;
             case 'o':
-                if (out_file) {
+                if (*out_file) {
                     fprintf(stderr, "Option -%c defined twice\n", optopt);
                     opterrs++;
                 }
-                out_file = optarg;
+                *out_file = optarg;
                 break;
             case ':':
                 fprintf(stderr, "Option -%c requires an operand\n", optopt);
@@ -347,33 +340,47 @@ int main(int argc, char **argv) {
         fprintf(stderr, "Usage: %s [ -i in_file ] [ -o out_file ] [ -k key_file ]\n", argv[0]);
         exit(1);
     }
+}
 
-    printf("Done parsing\n");
+int main(int argc, char **argv) {
+    aes_status status;
+    unsigned int keysize;
+
+    char *key_filen = NULL;
+    char  *in_filen = NULL;
+    char *out_filen = NULL;
+    optparse(argc, argv, &key_filen, &in_filen, &out_filen);
 
     keysize = 16;
 
-    // /* TEMPORARY INPUT FOR TESTING */
-    // scanf("%u\n", &keysize);
-    unsigned char *key = malloc(keysize * sizeof(unsigned char));
-    // for (size_t i=0; i<keysize; i++) {
-    //     key[i] = fgetc(stdin);
-    // }
-    // scanf("\n");
-    // for (size_t i=0; i<AES_BLOCK_SIZE; i++) {
-    //     block[i] = fgetc(stdin);
-    // }
-    // /* END TEMPORARY INPUT */
+    unsigned char *block = malloc(AES_BLOCK_SIZE * sizeof(unsigned char));
+    unsigned char *key   = malloc(keysize * sizeof(unsigned char));
+    if (block == NULL || key == NULL) {
+        printf("Out of memory. Aborting\n");
+        if (block != NULL)
+            free(block);
+        exit(1);
+    }
 
-    print_bytes(block, AES_BLOCK_SIZE);
+    FILE *key_file = (key_filen == NULL) ? stdin  : fopen(key_filen, "r");
+    FILE  *in_file =  (in_filen == NULL) ? stdin  : fopen(in_filen, "r");
+    FILE *out_file = (out_filen == NULL) ? stdout : fopen(out_filen, "w");
+
+    fread(key, sizeof(*key), keysize, key_file);
+    fread(block, sizeof(*block), AES_BLOCK_SIZE, in_file);
 
     status = aes_encrypt(block, key, keysize);
 
-    print_bytes(block, AES_BLOCK_SIZE);
+    fwrite(block, sizeof(*block), AES_BLOCK_SIZE, out_file);
 
+    fclose(key_file);
+    fclose(in_file);
+    fclose(out_file);
+    free(block);
     free(key);
     if (status != AES_SUCCEED) {
         print_readable(status);
-        return -1;
+        exit(1);
     }
     return 0;
 }
