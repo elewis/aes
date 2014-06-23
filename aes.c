@@ -6,6 +6,8 @@
  * Author: Ethan Lewis (eclewis21@gmail.com)
 */
 
+#include <getopt.h>
+
 #include "aes.h"
 
 /*
@@ -302,17 +304,65 @@ int main(int argc, char **argv) {
     unsigned int keysize;
     unsigned char block[AES_BLOCK_SIZE];
 
-    /* TEMPORARY INPUT FOR TESTING */
-    scanf("%u\n", &keysize);
+    char *key_file = NULL;
+    char  *in_file = NULL;
+    char *out_file = NULL;
+    int opt, opterrs=0;
+
+    while((opt = getopt(argc, argv, ":k:i:o:")) != -1) {
+        switch(opt) {
+            case 'k':
+                if (key_file) {
+                    fprintf(stderr, "Option -%c defined twice\n", optopt);
+                    opterrs++;
+                }
+                key_file = optarg;
+                break;
+            case 'i':
+                if (in_file) {
+                    fprintf(stderr, "Option -%c defined twice\n", optopt);
+                    opterrs++;
+                }
+                in_file = optarg;
+                break;
+            case 'o':
+                if (out_file) {
+                    fprintf(stderr, "Option -%c defined twice\n", optopt);
+                    opterrs++;
+                }
+                out_file = optarg;
+                break;
+            case ':':
+                fprintf(stderr, "Option -%c requires an operand\n", optopt);
+                opterrs++;
+                break;
+            case '?':
+                fprintf(stderr, "Unknown option -%c\n", optopt);
+                opterrs++;
+            default:
+                abort();
+        }
+    }
+    if (opterrs) {
+        fprintf(stderr, "Usage: %s [ -i in_file ] [ -o out_file ] [ -k key_file ]\n", argv[0]);
+        exit(1);
+    }
+
+    printf("Done parsing\n");
+
+    keysize = 16;
+
+    // /* TEMPORARY INPUT FOR TESTING */
+    // scanf("%u\n", &keysize);
     unsigned char *key = malloc(keysize * sizeof(unsigned char));
-    for (size_t i=0; i<keysize; i++) {
-        key[i] = fgetc(stdin);
-    }
-    scanf("\n");
-    for (size_t i=0; i<AES_BLOCK_SIZE; i++) {
-        block[i] = fgetc(stdin);
-    }
-    /* END TEMPORARY INPUT */
+    // for (size_t i=0; i<keysize; i++) {
+    //     key[i] = fgetc(stdin);
+    // }
+    // scanf("\n");
+    // for (size_t i=0; i<AES_BLOCK_SIZE; i++) {
+    //     block[i] = fgetc(stdin);
+    // }
+    // /* END TEMPORARY INPUT */
 
     print_bytes(block, AES_BLOCK_SIZE);
 
