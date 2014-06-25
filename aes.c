@@ -273,7 +273,7 @@ aes_status aes_encrypt(unsigned char block[AES_BLOCK_SIZE], unsigned char *key, 
         state[i] = block[i];
     }
 
-    /* BEGIN AES CORE */
+    /* Begin AES core */
     add_round_key(state, expanded_key);
 
     for (unsigned int i=1; i<=spec->nrounds; i++) {
@@ -285,7 +285,7 @@ aes_status aes_encrypt(unsigned char block[AES_BLOCK_SIZE], unsigned char *key, 
     sub_bytes(state);
     shift_rows(state);
     add_round_key(state, expanded_key + (AES_BLOCK_SIZE * (spec->nrounds+1)));
-    /* END AES CORE */
+    /* End AES core */
 
     for (unsigned int i=0; i<AES_BLOCK_SIZE; i++) {
         block[i] = state[i];
@@ -299,10 +299,11 @@ aes_status aes_decrypt(unsigned char block[AES_BLOCK_SIZE], unsigned char *key, 
     return AES_SUCCEED;
 }
 
-void optparse(int argc, char **argv, char **key_file, char **in_file, char **out_file) {
+void optparse(int argc, char **argv, unsigned int *keysize, char **key_file, char **in_file, char **out_file) {
     int opt, opterrs=0;
+    unsigned int k;
 
-    while((opt = getopt(argc, argv, ":k:i:o:")) != -1) {
+    while((opt = getopt(argc, argv, ":b:k:i:o:")) != -1) {
         switch(opt) {
             case 'k':
                 if (*key_file) {
@@ -325,6 +326,14 @@ void optparse(int argc, char **argv, char **key_file, char **in_file, char **out
                 }
                 *out_file = optarg;
                 break;
+            case 'b':
+                k = atoi(optarg);
+                if (!(k == 128 || k == 192 || k == 256)) {
+                    fprintf(stderr, "Invalid keysize provided (req 128, 192, or 256): %s\n", optarg);
+                    opterrs++;
+                }
+                *keysize = k / 8;
+                break;
             case ':':
                 fprintf(stderr, "Option -%c requires an operand\n", optopt);
                 opterrs++;
@@ -342,42 +351,71 @@ void optparse(int argc, char **argv, char **key_file, char **in_file, char **out
     }
 }
 
+void cleanup(unsigned char *key, unsigned char *block) {
+    if (key != NULL)
+        free(key);
+    if (block != NULL)
+        free(block);
+}
+
+aes_status read_bfile(unsigned char *out, size_t nbytes, FILE *f) {
+    size_t i, c = 0;
+    char buf[4] = { 0 };
+    while (c < nbytes) {
+        if (fread(buf, 1, 4, f) != 4)
+            return AES_BAD_INPUT;
+        for (i=0; i<4; i++)
+            out[c+i] = buf[i];
+        c += 4;
+    }
+    return AES_SUCCEED;
+}
+
 int main(int argc, char **argv) {
     aes_status status;
-    unsigned int keysize;
 
+    unsigned int keysize = 16;
     char *key_filen = NULL;
     char  *in_filen = NULL;
     char *out_filen = NULL;
-    optparse(argc, argv, &key_filen, &in_filen, &out_filen);
-
-    keysize = 16;
+    optparse(argc, argv, &keysize, &key_filen, &in_filen, &out_filen);
 
     unsigned char *block = malloc(AES_BLOCK_SIZE * sizeof(unsigned char));
     unsigned char *key   = malloc(keysize * sizeof(unsigned char));
     if (block == NULL || key == NULL) {
         printf("Out of memory. Aborting\n");
-        if (block != NULL)
-            free(block);
+        cleanup(key, block);
         exit(1);
     }
 
+    /* Read key */
     FILE *key_file = (key_filen == NULL) ? stdin  : fopen(key_filen, "r");
-    FILE  *in_file =  (in_filen == NULL) ? stdin  : fopen(in_filen, "r");
-    FILE *out_file = (out_filen == NULL) ? stdout : fopen(out_filen, "w");
+    status = read_bfile(key, keysize, key_file);
+    fclose(key_file);
+    if (status != AES_SUCCEED) {
+        printf("Bad input received for key. Aborting\n");
+        cleanup(key, block);
+        exit(1);
+    }
 
-    fread(key, sizeof(*key), keysize, key_file);
-    fread(block, sizeof(*block), AES_BLOCK_SIZE, in_file);
+    /* Read input block */
+    FILE  *in_file =  (in_filen == NULL) ? stdin  : fopen(in_filen, "r");
+    status = read_bfile(block, AES_BLOCK_SIZE, in_file);
+    fclose(in_file);
+    if (status != AES_SUCCEED) {
+        printf("Bad input received for data block. Aborting\n");
+        cleanup(key, block);
+        exit(1);
+    }
 
     status = aes_encrypt(block, key, keysize);
 
+    /* Write encrypted block */
+    FILE *out_file = (out_filen == NULL) ? stdout : fopen(out_filen, "w");
     fwrite(block, sizeof(*block), AES_BLOCK_SIZE, out_file);
-
-    fclose(key_file);
-    fclose(in_file);
     fclose(out_file);
-    free(block);
-    free(key);
+    
+    cleanup(key, block);
     if (status != AES_SUCCEED) {
         print_readable(status);
         exit(1);

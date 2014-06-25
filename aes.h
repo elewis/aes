@@ -13,7 +13,8 @@
 typedef enum {
     AES_SUCCEED,
     AES_BAD_KEYSIZE,
-    AES_OUT_OF_MEMORY
+    AES_OUT_OF_MEMORY,
+    AES_BAD_INPUT
 } aes_status;
 
 typedef struct {

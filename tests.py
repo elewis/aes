@@ -16,31 +16,40 @@ def run_tests(exe):
     print()
 
     for test in sorted(list(tests)):
-        infile = open("tests/{}.in".format(test), 'r')
-        outfile = open("tests/{}.out".format(test), 'w')
+        subprocess.Popen(
+            [
+                "./{}".format(exe),
+                "-b", test[3:6],
+                "-k", test_path(test, "key"),
+                "-i", test_path(test, "in"),
+                "-o", test_path(test, "out")
+            ],
+            stdout = subprocess.PIPE,
+            stderr = subprocess.STDOUT
+        ).communicate()[0]
 
-        cmd = "./{}".format(exe)
-        subprocess.Popen([cmd], stdin=infile, stdout=outfile, stderr=subprocess.STDOUT).communicate()[0]
+        print_diff(test, test_path(test, "out"), test_path(test, "ref"))
 
-        infile.close()
-        outfile.close()
+def test_path(name, typ):
+    return "{}/{}.{}".format(TESTDIR, name, typ)
 
-        outfile = open("tests/{}.out".format(test), 'r')
-        reffile = open("tests/{}.ref".format(test), 'r')
+def print_diff(test, fout, fref):
+    with open(fout, "rb") as fout_f:
+        with open(fref, "rb") as fref_f:
+            output = fout_f.read()
+            refput = fref_f.read()
 
-        output = outfile.readlines()
-        refput = reffile.readlines()
-
-        print("Test: {} ".format(test), end="")
-        if (''.join(output) == ''.join(refput)):
-            print("PASS")
-        else:
-            print("FAIL")
-            print("Diff (+ref, -usr):")
-            print(''.join(difflib.Differ().compare(output, refput)))
-
-        outfile.close()
-        reffile.close()
+            print("Test: {} ".format(test), end="")
+            if (output == refput):
+                print("PASS")
+            else:
+                diff = difflib.ndiff(
+                    output.splitlines(),
+                    refput.splitlines()
+                )
+                print("FAIL")
+                print("Diff (+ref, -usr):")
+                print("".join(diff))
 
 def main():
     run_tests(sys.argv[1])
