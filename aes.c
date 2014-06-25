@@ -205,17 +205,17 @@ void sub_bytes(unsigned char state[AES_BLOCK_SIZE]) {
 }
 
 void shift_rows(unsigned char state[AES_BLOCK_SIZE]) {
-    char r, c;
+    int r, c, i;
     unsigned char state_cpy[AES_BLOCK_SIZE];
     for (r=0; r<4; r++) {
         for (c=0; c<4; c++) {
-            state_cpy[r + 4*c] = state[r + 4*(c-r % 4)];
+            i = (r + 4*(c-r)) % AES_BLOCK_SIZE;
+            i = (i<0 ? i+AES_BLOCK_SIZE : i+0);
+            state_cpy[i] = state[r+4*c]; // Open to timing attacks?
         }
     }
-    for (r=0; r<4; r++) {
-        for (c=0; c<4; c++) {
-            state[r + 4*c] = state_cpy[r + 4*c];
-        }
+    for (i=0; i<AES_BLOCK_SIZE; i++) {
+        state[i] = state_cpy[i];
     }
 }
 
@@ -252,9 +252,9 @@ aes_status aes_encrypt(unsigned char block[AES_BLOCK_SIZE], unsigned char *key, 
     aes_spec s = {0, 0, 0};
     aes_spec *spec = &s;
     unsigned char *expanded_key;
+    unsigned int i;
 
     spec->keysize = keysize;
-
     aes_init_spec(spec);
     if (spec->keysize == AES_BAD_KEYSIZE) {
         return AES_BAD_KEYSIZE;
@@ -266,17 +266,15 @@ aes_status aes_encrypt(unsigned char block[AES_BLOCK_SIZE], unsigned char *key, 
     }
     key_schedule(key, expanded_key, spec);
 
-    //print_key(expanded_key, spec->expanded_keysize);
-
     unsigned char state[AES_BLOCK_SIZE] = { 0 };
-    for (unsigned int i=0; i<AES_BLOCK_SIZE; i++) {
+    for (i=0; i<AES_BLOCK_SIZE; i++) {
         state[i] = block[i];
     }
 
     /* Begin AES core */
     add_round_key(state, expanded_key);
 
-    for (unsigned int i=1; i<=spec->nrounds; i++) {
+    for (i=1; i<spec->nrounds; i++) {
         sub_bytes(state);
         shift_rows(state);
         mix_columns(state);
@@ -284,10 +282,10 @@ aes_status aes_encrypt(unsigned char block[AES_BLOCK_SIZE], unsigned char *key, 
     }
     sub_bytes(state);
     shift_rows(state);
-    add_round_key(state, expanded_key + (AES_BLOCK_SIZE * (spec->nrounds+1)));
+    add_round_key(state, expanded_key + (AES_BLOCK_SIZE * spec->nrounds));
     /* End AES core */
 
-    for (unsigned int i=0; i<AES_BLOCK_SIZE; i++) {
+    for (i=0; i<AES_BLOCK_SIZE; i++) {
         block[i] = state[i];
     }
 
@@ -412,7 +410,7 @@ int main(int argc, char **argv) {
 
     /* Write encrypted block */
     FILE *out_file = (out_filen == NULL) ? stdout : fopen(out_filen, "w");
-    fwrite(block, sizeof(*block), AES_BLOCK_SIZE, out_file);
+    fwrite(block, 1, AES_BLOCK_SIZE, out_file);
     fclose(out_file);
     
     cleanup(key, block);
