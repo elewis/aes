@@ -93,6 +93,14 @@ void print_key(unsigned char *buf, size_t length) {
     }
 }
 
+void print_state(unsigned char state[AES_BLOCK_SIZE]) {
+    unsigned int i;
+    for (i=0; i<4; i++) {
+        printf("%02x %02x %02x %02x\n", state[i], state[i+4], state[i+8], state[i+12]);
+    }
+    printf("\n");
+}
+
 void print_readable(aes_status status) {
     switch (status) {
         case AES_BAD_KEYSIZE:
@@ -209,14 +217,11 @@ void sub_bytes(unsigned char state[AES_BLOCK_SIZE]) {
 }
 
 void shift_rows(unsigned char state[AES_BLOCK_SIZE]) {
-    int r, c, i;
     unsigned char state_cpy[AES_BLOCK_SIZE];
-    for (r=0; r<4; r++) {
-        for (c=0; c<4; c++) {
-            i = (r + 4*(c-r)) % AES_BLOCK_SIZE;
-            i = (i<0 ? i+AES_BLOCK_SIZE : i+0);
-            state_cpy[i] = state[r+4*c]; // Open to timing attacks?
-        }
+    unsigned int i=0, j=0;
+    for (; i<AES_BLOCK_SIZE; i++) {
+        state_cpy[i] = state[j];
+        j = (j+5) % AES_BLOCK_SIZE;
     }
     for (i=0; i<AES_BLOCK_SIZE; i++) {
         state[i] = state_cpy[i];
@@ -373,6 +378,50 @@ aes_status read_bfile(unsigned char *out, size_t nbytes, FILE *f) {
     return AES_SUCCEED;
 }
 
+unsigned char hex_to_byte(unsigned char buf[2]) {
+    unsigned char c = 0x00;
+    if (buf[0] >= '0' && buf[0] <= '9') {
+        c |= (buf[0] - '0') << 4;
+    } else if (buf[0] >= 'a' && buf[0] <= 'f') {
+        c |= (buf[0] - 'a' + 10) << 4;
+    } else if (buf[0] >= 'A' && buf[0] <= 'F') {
+        c |= (buf[0] - 'A' + 10) << 4;
+    } else {
+        printf("Invalid hex character %c\n", buf[0]);
+        exit(1);
+    }
+
+    if (buf[1] >= '0' && buf[1] <= '9') {
+        c |= (buf[1] - '0') & 0xf;
+    } else if (buf[1] >= 'a' && buf[1] <= 'z') {
+        c |= (buf[1] - 'a' + 10) & 0xf;
+    } else if (buf[1] >= 'A' && buf[1] <= 'Z') {
+        c |= (buf[1] - 'A' + 10) & 0xf;
+    } else {
+        printf("Invalid hex character %c\n", buf[1]);
+        exit(1);
+    }
+    return c;
+}
+
+void fread_hex(FILE *f, unsigned char *buf, size_t nbytes) {
+    unsigned char hbytes[2];
+    for (; nbytes > 0; nbytes--) {
+        hbytes[0] = fgetc(f);
+        hbytes[1] = fgetc(f);
+        if (hbytes[1] == EOF) {
+            printf("Premature end of file\n");
+            exit(1);
+        }
+        *buf++ = hex_to_byte(hbytes);
+    }
+}
+
+void fwrite_hex(FILE *f, unsigned char *buf, size_t nbytes) {
+    for (; nbytes > 0; nbytes--)
+        fprintf(f, "%02x", *buf++);
+}
+
 int main(int argc, char **argv) {
     aes_status status;
 
@@ -392,29 +441,19 @@ int main(int argc, char **argv) {
 
     /* Read key */
     FILE *key_file = (key_filen == NULL) ? stdin  : fopen(key_filen, "r");
-    status = read_bfile(key, keysize, key_file);
+    fread_hex(key_file, key, keysize);
     fclose(key_file);
-    if (status != AES_SUCCEED) {
-        printf("Bad input received for key. Aborting\n");
-        cleanup(key, block);
-        exit(1);
-    }
 
     /* Read input block */
     FILE  *in_file =  (in_filen == NULL) ? stdin  : fopen(in_filen, "r");
-    status = read_bfile(block, AES_BLOCK_SIZE, in_file);
+    fread_hex(in_file, block, AES_BLOCK_SIZE);
     fclose(in_file);
-    if (status != AES_SUCCEED) {
-        printf("Bad input received for data block. Aborting\n");
-        cleanup(key, block);
-        exit(1);
-    }
 
     status = aes_encrypt(block, key, keysize);
 
     /* Write encrypted block */
     FILE *out_file = (out_filen == NULL) ? stdout : fopen(out_filen, "w");
-    fwrite(block, 1, AES_BLOCK_SIZE, out_file);
+    fwrite_hex(out_file, block, AES_BLOCK_SIZE);
     fclose(out_file);
     
     cleanup(key, block);

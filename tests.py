@@ -36,20 +36,16 @@ def test_path(name, typ):
 def print_diff(test, fout, fref):
     with open(fout, "rb") as fout_f:
         with open(fref, "rb") as fref_f:
-            output = fout_f.read()
-            refput = fref_f.read()
+            output = fout_f.read().decode("UTF-8")
+            refput = fref_f.read().decode("UTF-8")
 
-            print("Test: {} ".format(test), end="")
+            print(test, end=" ")
             if (output == refput):
                 print("PASS")
             else:
-                diff = difflib.ndiff(
-                    output.splitlines(),
-                    refput.splitlines()
-                )
                 print("FAIL")
-                print("Diff (+ref, -usr):")
-                print("".join(diff))
+                print("   ref: {}".format(refput))
+                print("   usr: {}".format(output))
 
 def main():
     run_tests(sys.argv[1])
