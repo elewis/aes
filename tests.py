@@ -34,18 +34,21 @@ def test_path(name, typ):
     return "{}/{}.{}".format(TESTDIR, name, typ)
 
 def print_diff(test, fout, fref):
+    print(test.ljust(20) + ":", end=" ")
     with open(fout, "rb") as fout_f:
-        with open(fref, "rb") as fref_f:
-            output = fout_f.read().decode("UTF-8")
-            refput = fref_f.read().decode("UTF-8")
-
-            print(test, end=" ")
-            if (output == refput):
-                print("PASS")
-            else:
-                print("FAIL")
-                print("   ref: {}".format(refput))
-                print("   usr: {}".format(output))
+        output = fout_f.read().decode("UTF-8")
+        if os.path.exists(fref):
+            with open(fref, "rb") as fref_f:
+                refput = fref_f.read().decode("UTF-8")
+                if (output == refput):
+                    print("PASS")
+                else:
+                    print("FAIL")
+                    print("   ref: {}".format(refput))
+                    print("   usr: {}".format(output))
+        else:
+            print("REF not found. Output was {}".format(output))
+        
 
 def main():
     run_tests(sys.argv[1])

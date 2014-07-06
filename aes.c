@@ -213,22 +213,25 @@ void shift_rows(unsigned char state[AES_BLOCK_SIZE]) {
     }
 }
 
-void mix_columns(unsigned char state[AES_BLOCK_SIZE]) {
-    unsigned char c, i, neg;
-    unsigned char *col;
+void mix_column(unsigned char *r) {
+    unsigned char i, neg;
     unsigned char one[4], two[4], thr[4];
-    for (c=0; c<AES_BLOCK_SIZE; c += 4) {
-        col = state + c;
-        for (i=0; i<4; i++) {
-            neg = (unsigned char) ((signed char) col[i]) >> 7;
-            one[i] = col[i];
-            two[i] = (col[i] << 1) ^ (0x1b & neg);
-            thr[i] = two[i] ^ one[i];
-        }
-        col[0] = two[0] ^ thr[1] ^ one[2] ^ one[3];
-        col[1] = one[0] ^ two[1] ^ thr[2] ^ one[3];
-        col[2] = one[0] ^ one[1] ^ two[2] ^ thr[3];
-        col[3] = thr[0] ^ one[1] ^ one[2] ^ two[3];
+    for (i=0; i<4; i++) {
+        neg = (unsigned char) ((signed char) r[i] >> 7);
+        one[i] = r[i];
+        two[i] = (r[i] << 1) ^ (0x1b & neg);
+        thr[i] = two[i] ^ one[i];
+    }
+    r[0] = two[0] ^ thr[1] ^ one[2] ^ one[3];
+    r[1] = one[0] ^ two[1] ^ thr[2] ^ one[3];
+    r[2] = one[0] ^ one[1] ^ two[2] ^ thr[3];
+    r[3] = thr[0] ^ one[1] ^ one[2] ^ two[3];
+}
+
+void mix_columns(unsigned char state[AES_BLOCK_SIZE]) {
+    unsigned char c;
+    for (c=0; c<AES_BLOCK_SIZE; c+=4) {
+        mix_column(state+c);
     }
 }
 
