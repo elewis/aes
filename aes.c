@@ -10,21 +10,11 @@
 
 #include "aes.h"
 
-/*
-    PUBLIC INTERFACE FUNCTIONS
-*/
-
-
-
-/*
-    KEY SCHEDULE FUNCTIONS
-*/
-
-unsigned char RCON[11] = {
+const unsigned char RCON[11] = {
     0x8d, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36,
 };
 
-unsigned char SBOX[256] = {
+const unsigned char SBOX[256] = {
     0x63, 0x7C, 0x77, 0x7B, 0xF2, 0x6B, 0x6F, 0xC5, 0x30, 0x01, 0x67, 0x2B, 0xFE, 0xD7, 0xAB, 0x76,
     0xCA, 0x82, 0xC9, 0x7D, 0xFA, 0x59, 0x47, 0xF0, 0xAD, 0xD4, 0xA2, 0xAF, 0x9C, 0xA4, 0x72, 0xC0,
     0xB7, 0xFD, 0x93, 0x26, 0x36, 0x3F, 0xF7, 0xCC, 0x34, 0xA5, 0xE5, 0xF1, 0x71, 0xD8, 0x31, 0x15,
@@ -43,7 +33,7 @@ unsigned char SBOX[256] = {
     0x8C, 0xA1, 0x89, 0x0D, 0xBF, 0xE6, 0x42, 0x68, 0x41, 0x99, 0x2D, 0x0F, 0xB0, 0x54, 0xBB, 0x16
 };
 
-unsigned char INV_SBOX[256] = {
+const unsigned char INV_SBOX[256] = {
     0x52, 0x09, 0x6A, 0xD5, 0x30, 0x36, 0xA5, 0x38, 0xBF, 0x40, 0xA3, 0x9E, 0x81, 0xF3, 0xD7, 0xFB,
     0x7C, 0xE3, 0x39, 0x82, 0x9B, 0x2F, 0xFF, 0x87, 0x34, 0x8E, 0x43, 0x44, 0xC4, 0xDE, 0xE9, 0xCB,
     0x54, 0x7B, 0x94, 0x32, 0xA6, 0xC2, 0x23, 0x3D, 0xEE, 0x4C, 0x95, 0x0B, 0x42, 0xFA, 0xC3, 0x4E,
@@ -62,23 +52,9 @@ unsigned char INV_SBOX[256] = {
     0x17, 0x2B, 0x04, 0x7E, 0xBA, 0x77, 0xD6, 0x26, 0xE1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0C, 0x7D
 };
 
-void print_bytes(unsigned char *buf, size_t length) {
-    for (; length>0; length--) {
-        printf("%02x ", *buf++);
-    }
-    printf("\n");
-}
-
-void print_key(unsigned char *buf, size_t length) {
-    for (; length>0; length--) {
-        printf("%02x ", *buf++);
-        if ((length - 1) % 16 == 0) {
-            printf("\n");
-        }
-    }
-}
-
-void print_state(unsigned char state[AES_BLOCK_SIZE]) {
+void
+print_state(unsigned char state[AES_BLOCK_SIZE])
+{
     unsigned int i;
     for (i=0; i<4; i++) {
         printf("%02x %02x %02x %02x\n", state[i], state[i+4], state[i+8], state[i+12]);
@@ -86,7 +62,9 @@ void print_state(unsigned char state[AES_BLOCK_SIZE]) {
     printf("\n");
 }
 
-void print_readable(aes_status status) {
+void
+print_readable(aes_status status)
+{
     switch (status) {
         case AES_BAD_KEYSIZE:
             printf("AES: Bad key size. AES keysize must be 16, 24, or 32 bytes.\n");
@@ -102,12 +80,63 @@ void print_readable(aes_status status) {
     }
 }
 
-void key_schedule_core(unsigned char word[4], unsigned int i) {
-    unsigned char tmp = word[0];
-    word[0] = SBOX[word[1]] ^ RCON[i];
-    word[1] = SBOX[word[2]];
-    word[2] = SBOX[word[3]];
-    word[3] = SBOX[tmp];
+unsigned char
+hex_to_byte(unsigned char buf[2])
+{
+    unsigned char c = 0x00;
+    if (buf[0] >= '0' && buf[0] <= '9') {
+        c |= (buf[0] - '0') << 4;
+    } else if (buf[0] >= 'a' && buf[0] <= 'f') {
+        c |= (buf[0] - 'a' + 10) << 4;
+    } else if (buf[0] >= 'A' && buf[0] <= 'F') {
+        c |= (buf[0] - 'A' + 10) << 4;
+    } else {
+        printf("Invalid hex character %c\n", buf[0]);
+        exit(1);
+    }
+
+    if (buf[1] >= '0' && buf[1] <= '9') {
+        c |= (buf[1] - '0') & 0xf;
+    } else if (buf[1] >= 'a' && buf[1] <= 'z') {
+        c |= (buf[1] - 'a' + 10) & 0xf;
+    } else if (buf[1] >= 'A' && buf[1] <= 'Z') {
+        c |= (buf[1] - 'A' + 10) & 0xf;
+    } else {
+        printf("Invalid hex character %c\n", buf[1]);
+        exit(1);
+    }
+    return c;
+}
+
+void
+fread_hex(FILE *f, unsigned char *buf, size_t nbytes)
+{
+    unsigned char hbytes[2];
+    for (; nbytes > 0; nbytes--) {
+        hbytes[0] = fgetc(f);
+        hbytes[1] = fgetc(f);
+        if (hbytes[1] == EOF) {
+            printf("Premature end of file\n");
+            exit(1);
+        }
+        *buf++ = hex_to_byte(hbytes);
+    }
+}
+
+void
+fwrite_hex(FILE *f, unsigned char *buf, size_t nbytes)
+{
+    for (; nbytes > 0; nbytes--)
+        fprintf(f, "%02x", *buf++);
+}
+
+void
+cleanup(unsigned char *key, unsigned char *block)
+{
+    if (key != NULL)
+        free(key);
+    if (block != NULL)
+        free(block);
 }
 
 /*
@@ -120,7 +149,9 @@ void key_schedule_core(unsigned char word[4], unsigned int i) {
  * Params
  *   spec - type of aes_spec struct with preinitialized keysize field
  */
-void aes_init_spec(aes_spec *spec) {
+void
+aes_init_spec(aes_spec *spec)
+{
     switch (spec->keysize) {
         case 16:
             spec->expanded_keysize = 176;
@@ -135,6 +166,16 @@ void aes_init_spec(aes_spec *spec) {
             spec->keysize = AES_BAD_KEYSIZE;
             spec->expanded_keysize = 0; break;
     }
+}
+
+void
+key_schedule_core(unsigned char word[4], unsigned int i)
+{
+    unsigned char tmp = word[0];
+    word[0] = SBOX[word[1]] ^ RCON[i];
+    word[1] = SBOX[word[2]];
+    word[2] = SBOX[word[3]];
+    word[3] = SBOX[tmp];
 }
 
 /*
@@ -192,22 +233,40 @@ key_schedule(unsigned char *key, unsigned char *expanded_key, aes_spec *spec)
 */
 
 /*  
-    PRIMARY ALGORITHM STEPS
+    BEGIN CORE FUNCTIONS
 */
 
-void sub_bytes(unsigned char state[AES_BLOCK_SIZE]) {
+/*
+ * SubBytes - Core AES function which transforms each byte of the state according
+ *            to a static S-Box function. Provides non-linearity.
+ *
+ * (SubBytes is used for encryption, InvSubBytes for decryption)
+ */
+void
+sub_bytes(unsigned char state[AES_BLOCK_SIZE])
+{
     for (unsigned int i=0; i<AES_BLOCK_SIZE; i++) {
         state[i] = SBOX[state[i]];
     }
 }
 
-void inv_sub_bytes(unsigned char state[AES_BLOCK_SIZE]) {
+void
+inv_sub_bytes(unsigned char state[AES_BLOCK_SIZE])
+{
     for (unsigned int i=0; i<AES_BLOCK_SIZE; i++) {
         state[i] = INV_SBOX[state[i]];
     }
 }
 
-void shift_rows(unsigned char state[AES_BLOCK_SIZE]) {
+/*
+ * ShiftRows - Core AES function which cyclically shifts each row of the state matrix
+ *             left by a number of bytes equal to its row index. Provides diffusion.
+ *
+ * (ShiftRows is used for encryption, InvShiftRows is used for decryption)
+ */
+void
+shift_rows(unsigned char state[AES_BLOCK_SIZE])
+{
     unsigned char state_cpy[AES_BLOCK_SIZE];
     unsigned int i, j=0;
     for (i=0; i<AES_BLOCK_SIZE; i++) {
@@ -219,7 +278,9 @@ void shift_rows(unsigned char state[AES_BLOCK_SIZE]) {
     }
 }
 
-void inv_shift_rows(unsigned char state[AES_BLOCK_SIZE]) {
+void
+inv_shift_rows(unsigned char state[AES_BLOCK_SIZE])
+{
     unsigned char state_cpy[AES_BLOCK_SIZE];
     unsigned int i, j=3;
     for (i=AES_BLOCK_SIZE; i>0; i--) {
@@ -231,7 +292,14 @@ void inv_shift_rows(unsigned char state[AES_BLOCK_SIZE]) {
     }
 }
 
-void mix_column(unsigned char *r) {
+/*
+ * MixColumns - Core AES function which combines the four bytes of each column. Provides diffusion.
+ *
+ * (MixColumns is used for encryption, InvMixColumns is used for decryption)
+ */
+void
+mix_column(unsigned char *r)
+{
     unsigned char i, neg;
     unsigned char one[4], two[4], thr[4];
     for (i=0; i<4; i++) {
@@ -246,14 +314,23 @@ void mix_column(unsigned char *r) {
     r[3] = thr[0] ^ one[1] ^ one[2] ^ two[3];
 }
 
-void mix_columns(unsigned char state[AES_BLOCK_SIZE]) {
+void
+mix_columns(unsigned char state[AES_BLOCK_SIZE])
+{
     unsigned char c;
     for (c=0; c<AES_BLOCK_SIZE; c+=4) {
         mix_column(state+c);
     }
 }
 
-void inv_mix_column(unsigned char *r) {
+/*
+ * MixColumns - Core AES function which combines the four bytes of each column. Provides diffusion.
+ *
+ * (MixColumns is used for encryption, InvMixColumns is used for decryption)
+ */
+void
+inv_mix_column(unsigned char *r)
+{
     unsigned char i, neg;
     unsigned char one[4], two[4], fou[4], eig[4];
     for (i=0; i<4; i++) {
@@ -274,24 +351,48 @@ void inv_mix_column(unsigned char *r) {
     r[3] = (eig[0]^two[0]^one[0]) ^ (eig[1]^fou[1]^one[1]) ^ (eig[2]^one[2])        ^ (eig[3]^fou[3]^two[3]); /* 11 13 9  14 */
 }
 
-void inv_mix_columns(unsigned char state[AES_BLOCK_SIZE]) {
+void
+inv_mix_columns(unsigned char state[AES_BLOCK_SIZE])
+{
     unsigned char c;
     for (c=0; c<AES_BLOCK_SIZE; c+=4) {
         inv_mix_column(state+c);
     }
 }
 
-void add_round_key(unsigned char state[AES_BLOCK_SIZE], unsigned char round_key[AES_BLOCK_SIZE]) {
+/*
+ * AddRoundKey - Core AES function which XORs given round key with the state matrix.
+ */
+void
+add_round_key(unsigned char state[AES_BLOCK_SIZE], unsigned char round_key[AES_BLOCK_SIZE])
+{
     for (unsigned int i=0; i<AES_BLOCK_SIZE; i++) {
         state[i] ^= round_key[i];
     }
 }
 
 /*
-    END PRIMARY ALGORITHM
+    END CORE FUNCTIONS
 */
 
-aes_status aes_encrypt(unsigned char block[AES_BLOCK_SIZE], unsigned char *key, unsigned int keysize) {
+/*
+ * AES Encrypt (128, 192, or 256 bit)
+ *
+ * Encrypts a single block of data using the Rijndael cipher (AES)
+ * and the given key, and returns a status code indicating the success of
+ * the encryption operation (see aes_status in aes.h). The original block
+ * of data is overwritten in memory by its encrypted version.
+ *
+ * Params
+ *   block            - pointer to data block. AES uses a blocksize of 16 bytes (128 bits)
+ *   key              - pointer to encryption key (must be keysize bytes long)
+ *   keysize          - size of key in bytes
+ *
+ * Returns status code indicating success of encryption (0=pass, >0 see aes_status)
+ */
+aes_status
+aes_encrypt(unsigned char block[AES_BLOCK_SIZE], unsigned char *key, unsigned int keysize)
+{
     aes_spec s = {0, 0, 0};
     aes_spec *spec = &s;
     unsigned char *expanded_key;
@@ -314,7 +415,7 @@ aes_status aes_encrypt(unsigned char block[AES_BLOCK_SIZE], unsigned char *key, 
         state[i] = block[i];
     }
 
-    /* Begin AES core */
+    /* Begin AES ENCRYPT core */
     add_round_key(state, expanded_key);
     for (i=1; i<spec->nrounds; i++) {
         sub_bytes(state);
@@ -325,17 +426,33 @@ aes_status aes_encrypt(unsigned char block[AES_BLOCK_SIZE], unsigned char *key, 
     sub_bytes(state);
     shift_rows(state);
     add_round_key(state, expanded_key + (AES_BLOCK_SIZE * spec->nrounds));
-    /* End AES core */
+    /* End AES ENCRYPT core */
 
     for (i=0; i<AES_BLOCK_SIZE; i++) {
         block[i] = state[i];
     }
-
     free(expanded_key);
     return AES_SUCCEED;
 }
 
-aes_status aes_decrypt(unsigned char block[AES_BLOCK_SIZE], unsigned char *key, unsigned int keysize) {
+/*
+ * AES Decrypt (128, 192, or 256 bit)
+ *
+ * Decrypts a single ciphertext block using the Rijndael cipher (AES)
+ * and the given key, and returns a status code indicating the success of
+ * the decryption operation (see aes_status in aes.h). The original encrypted
+ * block is overwritten in memory by the retrieved plaintext.
+ *
+ * Params
+ *   block            - pointer to data block. AES uses a blocksize of 16 bytes (128 bits)
+ *   key              - pointer to decryption key (must be keysize bytes long)
+ *   keysize          - size of key in bytes
+ *
+ * Returns status code indicating success of decryption (0=pass, >0 see aes_status)
+ */
+aes_status
+aes_decrypt(unsigned char block[AES_BLOCK_SIZE], unsigned char *key, unsigned int keysize)
+{
     aes_spec s = {0, 0, 0};
     aes_spec *spec = &s;
     unsigned char *expanded_key;
@@ -379,7 +496,26 @@ aes_status aes_decrypt(unsigned char block[AES_BLOCK_SIZE], unsigned char *key, 
     return AES_SUCCEED;
 }
 
-void optparse(int argc, char **argv, unsigned int *action, unsigned int *keysize, char **key_file, char **in_file, char **out_file) {
+/*
+ * Optparse
+ *
+ * Parses command line options input to the program. Available flags are:
+ *
+ *  -e | -d         specifies encryption or decryption, respectively. mutually exclusive
+ *  -b <int>        keysize in bits (128, 192, or 256)
+ *  -k <filepath>   location of keyfile
+ *  -i <filepath>   location of input file (defaults to stdin if not included)
+ *  -o <filepath>   location of output file (defaults to stdout if not included)
+ */
+void
+optparse(int argc,
+         char **argv,
+         unsigned int *action,
+         unsigned int *keysize,
+         char **key_file,
+         char **in_file,
+         char **out_file)
+{
     int opt, opterrs=0;
     unsigned int k;
     while((opt = getopt(argc, argv, "edb:k:i:o:")) != -1) {
@@ -444,58 +580,9 @@ void optparse(int argc, char **argv, unsigned int *action, unsigned int *keysize
     }
 }
 
-void cleanup(unsigned char *key, unsigned char *block) {
-    if (key != NULL)
-        free(key);
-    if (block != NULL)
-        free(block);
-}
-
-unsigned char hex_to_byte(unsigned char buf[2]) {
-    unsigned char c = 0x00;
-    if (buf[0] >= '0' && buf[0] <= '9') {
-        c |= (buf[0] - '0') << 4;
-    } else if (buf[0] >= 'a' && buf[0] <= 'f') {
-        c |= (buf[0] - 'a' + 10) << 4;
-    } else if (buf[0] >= 'A' && buf[0] <= 'F') {
-        c |= (buf[0] - 'A' + 10) << 4;
-    } else {
-        printf("Invalid hex character %c\n", buf[0]);
-        exit(1);
-    }
-
-    if (buf[1] >= '0' && buf[1] <= '9') {
-        c |= (buf[1] - '0') & 0xf;
-    } else if (buf[1] >= 'a' && buf[1] <= 'z') {
-        c |= (buf[1] - 'a' + 10) & 0xf;
-    } else if (buf[1] >= 'A' && buf[1] <= 'Z') {
-        c |= (buf[1] - 'A' + 10) & 0xf;
-    } else {
-        printf("Invalid hex character %c\n", buf[1]);
-        exit(1);
-    }
-    return c;
-}
-
-void fread_hex(FILE *f, unsigned char *buf, size_t nbytes) {
-    unsigned char hbytes[2];
-    for (; nbytes > 0; nbytes--) {
-        hbytes[0] = fgetc(f);
-        hbytes[1] = fgetc(f);
-        if (hbytes[1] == EOF) {
-            printf("Premature end of file\n");
-            exit(1);
-        }
-        *buf++ = hex_to_byte(hbytes);
-    }
-}
-
-void fwrite_hex(FILE *f, unsigned char *buf, size_t nbytes) {
-    for (; nbytes > 0; nbytes--)
-        fprintf(f, "%02x", *buf++);
-}
-
-int main(int argc, char **argv) {
+int
+main(int argc, char **argv)
+{
     aes_status status;
 
     unsigned int keysize = 16;
