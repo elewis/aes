@@ -201,6 +201,12 @@ void sub_bytes(unsigned char state[AES_BLOCK_SIZE]) {
     }
 }
 
+void inv_sub_bytes(unsigned char state[AES_BLOCK_SIZE]) {
+    for (unsigned int i=0; i<AES_BLOCK_SIZE; i++) {
+        state[i] = INV_SBOX[state[i]];
+    }
+}
+
 void shift_rows(unsigned char state[AES_BLOCK_SIZE]) {
     unsigned char state_cpy[AES_BLOCK_SIZE];
     unsigned int i, j=0;
@@ -211,6 +217,10 @@ void shift_rows(unsigned char state[AES_BLOCK_SIZE]) {
     for (i=0; i<AES_BLOCK_SIZE; i++) {
         state[i] = state_cpy[i];
     }
+}
+
+void inv_shift_rows(unsigned char state[AES_BLOCK_SIZE]) {
+
 }
 
 void mix_column(unsigned char *r) {
@@ -232,6 +242,17 @@ void mix_columns(unsigned char state[AES_BLOCK_SIZE]) {
     unsigned char c;
     for (c=0; c<AES_BLOCK_SIZE; c+=4) {
         mix_column(state+c);
+    }
+}
+
+void inv_mix_column(unsigned char *r) {
+
+}
+
+void inv_mix_columns(unsigned char state[AES_BLOCK_SIZE]) {
+    unsigned char c;
+    for (c=0; c<AES_BLOCK_SIZE; c+=4) {
+        inv_mix_column(state+c);
     }
 }
 
@@ -270,7 +291,6 @@ aes_status aes_encrypt(unsigned char block[AES_BLOCK_SIZE], unsigned char *key, 
 
     /* Begin AES core */
     add_round_key(state, expanded_key);
-
     for (i=1; i<spec->nrounds; i++) {
         sub_bytes(state);
         shift_rows(state);
@@ -291,15 +311,68 @@ aes_status aes_encrypt(unsigned char block[AES_BLOCK_SIZE], unsigned char *key, 
 }
 
 aes_status aes_decrypt(unsigned char block[AES_BLOCK_SIZE], unsigned char *key, unsigned int keysize) {
+    aes_spec s = {0, 0, 0};
+    aes_spec *spec = &s;
+    unsigned char *expanded_key;
+    unsigned int i;
+
+    spec->keysize = keysize;
+    aes_init_spec(spec);
+    if (spec->keysize == AES_BAD_KEYSIZE) {
+        return AES_BAD_KEYSIZE;
+    }
+
+    expanded_key = (unsigned char*) malloc(spec->expanded_keysize * sizeof(unsigned char));
+    if (expanded_key == NULL) {
+        return AES_OUT_OF_MEMORY;
+    }
+    key_schedule(key, expanded_key, spec);
+
+    unsigned char state[AES_BLOCK_SIZE] = { 0 };
+    for (i=0; i<AES_BLOCK_SIZE; i++) {
+        state[i] = block[i];
+    }
+
+    /* Begin AES DECRYPT core */
+    add_round_key(state, expanded_key + (AES_BLOCK_SIZE * spec->nrounds));
+    inv_shift_rows(state);
+    inv_sub_bytes(state);
+    for (i=spec->nrounds-1; i>0; i--) {
+        add_round_key(state, expanded_key + (AES_BLOCK_SIZE * i));
+        inv_mix_columns(state);
+        inv_shift_rows(state);
+        inv_sub_bytes(state);
+    }
+    add_round_key(state, expanded_key);
+    /* End AES DECRYPT core */
+
+
+    for (i=0; i<AES_BLOCK_SIZE; i++) {
+        block[i] = state[i];
+    }
+    free(expanded_key);
     return AES_SUCCEED;
 }
 
-void optparse(int argc, char **argv, unsigned int *keysize, char **key_file, char **in_file, char **out_file) {
+void optparse(int argc, char **argv, unsigned int *action, unsigned int *keysize, char **key_file, char **in_file, char **out_file) {
     int opt, opterrs=0;
     unsigned int k;
-
-    while((opt = getopt(argc, argv, ":b:k:i:o:")) != -1) {
+    while((opt = getopt(argc, argv, "edb:k:i:o:")) != -1) {
         switch(opt) {
+            case 'e':
+                if (*action != 0) {
+                    fprintf(stderr, "Options -e and -d are exclusive\n");
+                    opterrs++;
+                }
+                *action = 1;
+                break;
+            case 'd':
+                if (*action != 0) {
+                    fprintf(stderr, "Options -e and -d are exclusive\n");
+                    opterrs++;
+                }
+                *action = 2;
+                break;
             case 'k':
                 if (*key_file) {
                     fprintf(stderr, "Option -%c defined twice\n", optopt);
@@ -341,7 +414,7 @@ void optparse(int argc, char **argv, unsigned int *keysize, char **key_file, cha
         }
     }
     if (opterrs) {
-        fprintf(stderr, "Usage: %s [ -i in_file ] [ -o out_file ] [ -k key_file ]\n", argv[0]);
+        fprintf(stderr, "Usage: %s (-e | -d) [ -i in_file ] [ -o out_file ] [ -k key_file ]\n", argv[0]);
         exit(1);
     }
 }
@@ -401,10 +474,11 @@ int main(int argc, char **argv) {
     aes_status status;
 
     unsigned int keysize = 16;
+    unsigned int action = 0;
     char *key_filen = NULL;
     char  *in_filen = NULL;
     char *out_filen = NULL;
-    optparse(argc, argv, &keysize, &key_filen, &in_filen, &out_filen);
+    optparse(argc, argv, &action, &keysize, &key_filen, &in_filen, &out_filen);
 
     unsigned char *block = malloc(AES_BLOCK_SIZE * sizeof(unsigned char));
     unsigned char *key   = malloc(keysize * sizeof(unsigned char));
@@ -424,7 +498,19 @@ int main(int argc, char **argv) {
     fread_hex(in_file, block, AES_BLOCK_SIZE);
     fclose(in_file);
 
-    status = aes_encrypt(block, key, keysize);
+    /* action defined by optparse */
+    switch (action) {
+        case 1:
+            status = aes_encrypt(block, key, keysize);
+            break;
+        case 2:
+            status = aes_decrypt(block, key, keysize);
+            break;
+        default:
+            printf("No action specified. Aborting\n");
+            cleanup(key, block);
+            exit(1);
+    }
 
     if (status != AES_SUCCEED) {
         print_readable(status);
