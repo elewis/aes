@@ -220,7 +220,40 @@ void shift_rows(unsigned char state[AES_BLOCK_SIZE]) {
 }
 
 void inv_shift_rows(unsigned char state[AES_BLOCK_SIZE]) {
+    unsigned char state_cpy[AES_BLOCK_SIZE];
+    unsigned int i;
 
+    /*
+    0  4  8  12
+    1  5  9  13
+    2  6  10 14
+    3  7  11 15
+    */
+    
+    state_cpy[0]  = state[0];
+    state_cpy[1]  = state[13];
+    state_cpy[2]  = state[10];
+    state_cpy[3]  = state[7];
+
+    state_cpy[4]  = state[4];
+    state_cpy[5]  = state[1];
+    state_cpy[6]  = state[14];
+    state_cpy[7]  = state[11];
+
+    state_cpy[8]  = state[8];
+    state_cpy[9]  = state[5];
+    state_cpy[10] = state[2];
+    state_cpy[11] = state[15];
+
+    state_cpy[12] = state[12];
+    state_cpy[13] = state[9];
+    state_cpy[14] = state[6];
+    state_cpy[15] = state[3];
+
+
+    for (i=0; i<AES_BLOCK_SIZE; i++) {
+        state[i] = state_cpy[i];
+    }
 }
 
 void mix_column(unsigned char *r) {
@@ -246,7 +279,24 @@ void mix_columns(unsigned char state[AES_BLOCK_SIZE]) {
 }
 
 void inv_mix_column(unsigned char *r) {
+    unsigned char i, neg;
+    unsigned char one[4], two[4], fou[4], eig[4];
+    for (i=0; i<4; i++) {
+        one[i] = r[i];
 
+        neg = (unsigned char) ((signed char) one[i] >> 7);
+        two[i] = (one[i] << 1) ^ (0x1b & neg);
+
+        neg = (unsigned char) ((signed char) two[i] >> 7);
+        fou[i] = (two[i] << 1) ^ (0x1b & neg);
+
+        neg = (unsigned char) ((signed char) fou[i] >> 7);
+        eig[i] = (fou[i] << 1) ^ (0x1b & neg);
+    }
+    r[0] = (eig[0]^fou[0]^two[0]) ^ (eig[1]^two[1]^one[1]) ^ (eig[2]^fou[2]^one[2]) ^ (eig[3]^one[3])       ; /* 14 11 13 9  */
+    r[1] = (eig[0]^one[0])        ^ (eig[1]^fou[1]^two[1]) ^ (eig[2]^two[2]^one[2]) ^ (eig[3]^fou[3]^one[3]); /* 9  14 11 13 */
+    r[2] = (eig[0]^fou[0]^one[0]) ^ (eig[1]^one[1])        ^ (eig[2]^fou[2]^two[2]) ^ (eig[3]^two[3]^one[3]); /* 13 9  14 11 */
+    r[3] = (eig[0]^two[0]^one[0]) ^ (eig[1]^fou[1]^one[1]) ^ (eig[2]^one[2])        ^ (eig[3]^fou[3]^two[3]); /* 11 13 9  14 */
 }
 
 void inv_mix_columns(unsigned char state[AES_BLOCK_SIZE]) {
