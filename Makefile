@@ -7,6 +7,7 @@ default:
 
 test: default
 	./tests.py aes_out
+	make clean > /dev/null
 
 clean:
 	rm -f *_out tests/*.out
