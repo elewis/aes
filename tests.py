@@ -16,10 +16,11 @@ def run_tests(exe):
     print()
 
     for test in sorted(list(tests)):
-        proc = subprocess.Popen(
+        # Test encryption step
+        encrypt = subprocess.Popen(
             [
                 "./{}".format(exe),
-                "-e" if test[7:10] == "enc" else "-d",
+                "-e",
                 "-b", test[3:6],
                 "-k", test_path(test, "key"),
                 "-i", test_path(test, "in"),
@@ -28,8 +29,25 @@ def run_tests(exe):
             stdout = subprocess.PIPE,
             stderr = subprocess.STDOUT
         )
-        out = proc.communicate()[0]
-        print_diff(test, test_path(test, "out"), test_path(test, "ref"))
+        out = encrypt.communicate()[0]
+        print_diff(test + " encrypt", test_path(test, "out"), test_path(test, "ref"))
+
+
+        # Tests decryption step by running same test with reverse inputs
+        decrypt = subprocess.Popen(
+            [
+                "./{}".format(exe),
+                "-d",
+                "-b", test[3:6],
+                "-k", test_path(test, "key"),
+                "-i", test_path(test, "ref"),
+                "-o", test_path(test, "out")
+            ],
+            stdout = subprocess.PIPE,
+            stderr = subprocess.STDOUT
+        )
+        out = decrypt.communicate()[0]
+        print_diff(test + " decrypt", test_path(test, "out"), test_path(test, "in"))
 
 def test_path(name, typ):
     return "{}/{}.{}".format(TESTDIR, name, typ)
@@ -43,7 +61,7 @@ def print_diff(test, fout, fref):
         with open(fref, "rb") as fref_f:
             refput = fref_f.read().decode("UTF-8")
 
-    print(test.ljust(20) + ":", end=" ")
+    print(test.ljust(25) + ":", end=" ")
     if (output == refput):
         print("PASS")
     else:
