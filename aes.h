@@ -4,9 +4,6 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <stdint.h>
-#include <string.h>
-#include <unistd.h>
 
 #define AES_BLOCK_SIZE 16
 
