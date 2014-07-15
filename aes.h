@@ -4,24 +4,19 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdint.h>
+#include <stdbool.h>
 
 #define AES_BLOCK_SIZE 16
 
-typedef enum {
-    AES_SUCCEED,
-    AES_BAD_KEYSIZE,
-    AES_OUT_OF_MEMORY,
-    AES_BAD_INPUT
-} aes_status;
-
 typedef struct {
-    unsigned int keysize;
-    unsigned int expanded_keysize;
-    unsigned int nrounds;
+    size_t keysize;
+    size_t expanded_keysize;
+    size_t nrounds;
 } aes_spec;
 
-aes_status aes_encrypt(unsigned char block[AES_BLOCK_SIZE], unsigned char *key, unsigned int keysize);
+bool aes_encrypt(uint8_t input[AES_BLOCK_SIZE], uint8_t output[AES_BLOCK_SIZE], uint8_t *key, size_t keysize);
 
-aes_status aes_decrypt(unsigned char block[AES_BLOCK_SIZE], unsigned char *key, unsigned int keysize);
+bool aes_decrypt(uint8_t input[AES_BLOCK_SIZE], uint8_t output[AES_BLOCK_SIZE], uint8_t *key, size_t keysize);
 
 #endif /* AES_H_INCLUDED */
